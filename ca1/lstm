@@ -1,0 +1,92 @@
+# Import necessary libraries
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+
+# Step 1: Load the dataset
+file_path = 'TrainingData.csv'  # Replace with the actual file path
+data = pd.read_csv(file_path)
+
+# Check the data format
+print(data.head())
+
+# Step 2: Preprocess the data
+# Extract features (bitstreams) and labels
+bitstreams = data['Bitstream']
+labels = np.array(data['class'])  # Update 'Label' to 'class'
+
+# Convert bitstreams to numerical arrays
+bitstreams_numeric = np.array([list(map(int, list(bitstream))) for bitstream in bitstreams])
+
+# Reshape bitstreams for LSTM input (samples, sequence_length, feature_dim)
+bitstreams_reshaped = bitstreams_numeric.reshape(bitstreams_numeric.shape[0], 1024, 1)
+
+# Step 3: Split the dataset
+x_train, x_temp, y_train, y_temp = train_test_split(bitstreams_reshaped, labels, test_size=0.3, random_state=42)
+x_val, x_test, y_val, y_test = train_test_split(x_temp, y_temp, test_size=0.5, random_state=42)
+
+print("Train set shape:", x_train.shape, y_train.shape)
+print("Validation set shape:", x_val.shape, y_val.shape)
+print("Test set shape:", x_test.shape, y_test.shape)
+
+# Step 4: Define the LSTM model
+def create_lstm_model(input_shape):
+    model = Sequential([
+        LSTM(128, input_shape=input_shape, return_sequences=True),
+        Dropout(0.2),
+        LSTM(64, return_sequences=False),
+        Dropout(0.2),
+        Dense(32, activation='relu'),
+        Dense(1, activation='sigmoid')  # Binary classification
+    ])
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    return model
+
+input_shape = (1024, 1)  # Sequence length = 1024, Feature dimension = 1
+model = create_lstm_model(input_shape)
+model.summary()
+
+# Step 5: Train the model
+history = model.fit(
+    x_train, y_train,
+    validation_data=(x_val, y_val),
+    epochs=20,  # Adjust based on performance
+    batch_size=64,
+    verbose=1
+)
+
+# Step 6: Evaluate the model
+test_loss, test_accuracy = model.evaluate(x_test, y_test, verbose=0)
+print(f"Test Accuracy: {test_accuracy:.4f}")
+
+# Step 7: Plot training history
+# Accuracy plot
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.title('Model Accuracy')
+plt.show()
+
+# Loss plot
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.title('Model Loss')
+plt.show()
+
+# Step 8: Confusion Matrix
+y_pred = (model.predict(x_test) > 0.5).astype(int)  # Threshold = 0.5 for binary classification
+cm = confusion_matrix(y_test, y_pred)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
+disp.plot(cmap=plt.cm.Blues)
+plt.title('Confusion Matrix')
+plt.show()
