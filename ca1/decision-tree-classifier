@@ -1,0 +1,65 @@
+# Import necessary libraries
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+
+# Step 1: Load the dataset
+file_path = 'TrainingData.csv'  # Replace with the actual file path
+data = pd.read_csv(file_path)
+
+# Check the data format
+print(data.head())
+
+# Step 2: Preprocess the data
+# Extract features (bitstreams) and labels
+bitstreams = data['Bitstream']
+labels = np.array(data['class'])  # Target column is 'class'
+
+# Convert bitstreams to numerical arrays
+bitstreams_numeric = np.array([list(map(int, list(bitstream))) for bitstream in bitstreams])
+
+# Step 3: Split the dataset
+x_train, x_temp, y_train, y_temp = train_test_split(bitstreams_numeric, labels, test_size=0.3, random_state=42)
+x_val, x_test, y_val, y_test = train_test_split(x_temp, y_temp, test_size=0.5, random_state=42)
+
+print("Train set shape:", x_train.shape, y_train.shape)
+print("Validation set shape:", x_val.shape, y_val.shape)
+print("Test set shape:", x_test.shape, y_test.shape)
+
+# Step 4: Create and Train the Decision Tree Classifier
+# Initialize the Decision Tree Classifier
+decision_tree = DecisionTreeClassifier(max_depth=10, random_state=42)  # Adjust max_depth as needed
+
+# Train the model
+decision_tree.fit(x_train, y_train)
+
+# Step 5: Validate and Test the Model
+# Predict on the validation set
+y_val_pred = decision_tree.predict(x_val)
+val_accuracy = accuracy_score(y_val, y_val_pred)
+print(f"Validation Accuracy: {val_accuracy:.4f}")
+
+# Predict on the test set
+y_test_pred = decision_tree.predict(x_test)
+test_accuracy = accuracy_score(y_test, y_test_pred)
+print(f"Test Accuracy: {test_accuracy:.4f}")
+
+# Step 6: Confusion Matrix
+cm = confusion_matrix(y_test, y_test_pred)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
+disp.plot(cmap=plt.cm.Blues)
+plt.title('Confusion Matrix')
+plt.show()
+
+# Step 7: Feature Importance
+# Plot feature importance
+feature_importances = decision_tree.feature_importances_
+plt.figure(figsize=(10, 6))
+plt.bar(range(len(feature_importances)), feature_importances, color='skyblue')
+plt.title('Feature Importance')
+plt.xlabel('Bitstream Index')
+plt.ylabel('Importance Score')s
+plt.show()
